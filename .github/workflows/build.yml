@@ -48,7 +48,8 @@ jobs:
           unzip \
           lld \
           wget \
-          curl
+          curl \
+          zip
     
     - name: Install Buildozer and Cython
       run: |
@@ -56,15 +57,49 @@ jobs:
         pip install cython==0.29.33
         pip install buildozer
     
-    - name: Accept Android licenses
+    - name: Build APK (erster Versuch - lädt SDK)
       run: |
+        buildozer android debug || true
+    
+    - name: Fix Android SDK Build-Tools
+      run: |
+        # SDK Verzeichnis
+        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+        
+        # Falls cmdline-tools noch nicht da sind
+        if [ ! -d "$SDK_DIR/cmdline-tools" ]; then
+          cd $SDK_DIR
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          rm commandlinetools-linux-11076708_latest.zip
+        fi
+        
+        # Pfad setzen
+        export PATH=$PATH:$SDK_DIR/cmdline-tools/bin
+        
+        # Lizenzen akzeptieren
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
-        yes | sdkmanager --licenses || true
+        yes | sdkmanager --licenses
+        
+        # Build-Tools installieren
+        sdkmanager "build-tools;33.0.0" "platform-tools" "platforms;android-33"
+        
+        # Build-Tools an die von Buildozer erwartete Stelle verlinken/kopieren
+        if [ -d "$SDK_DIR/build-tools/33.0.0" ] && [ ! -d "$SDK_DIR/build-tools" ]; then
+          mkdir -p $SDK_DIR/build-tools
+        fi
+        
+        # Symbolischen Link erstellen falls nötig
+        if [ ! -e "$SDK_DIR/build-tools/33.0.0/aidl" ] && [ -e "$SDK_DIR/build-tools/33.0.0/aidl" ]; then
+          echo "Build-Tools OK"
+        fi
+        
+        # Prüfen ob aidl existiert
+        find $SDK_DIR -name "aidl" 2>/dev/null
     
-    - name: Build APK
+    - name: Build APK (zweiter Versuch)
       run: |
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/tools/bin
         buildozer android debug
     
     - name: Upload APK
