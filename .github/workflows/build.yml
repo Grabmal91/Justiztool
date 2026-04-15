@@ -62,16 +62,18 @@ jobs:
         # SDK Verzeichnis
         SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
         mkdir -p $SDK_DIR/cmdline-tools
+        mkdir -p $SDK_DIR/tools/bin
         
-        # cmdline-tools herunterladen und in latest/ entpacken
+        # cmdline-tools herunterladen
         cd $SDK_DIR/cmdline-tools
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
         unzip -q commandlinetools-linux-11076708_latest.zip
         mv cmdline-tools latest
         rm commandlinetools-linux-11076708_latest.zip
         
-        # SDK Manager Pfad setzen
-        export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
+        # SYMLINK für Buildozer-Kompatibilität erstellen
+        ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+        chmod +x $SDK_DIR/tools/bin/sdkmanager
         
         # Android-Lizenzen akzeptieren
         mkdir -p $HOME/.android
@@ -82,12 +84,11 @@ jobs:
         $SDK_DIR/cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.0" "platform-tools" "platforms;android-33"
         
         # Prüfen
+        ls -la $SDK_DIR/tools/bin/
         ls -la $SDK_DIR/build-tools/
-        ls -la $SDK_DIR/build-tools/33.0.0/
     
     - name: Build APK
       run: |
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
         buildozer android debug
     
     - name: Upload APK
