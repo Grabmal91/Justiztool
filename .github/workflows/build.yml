@@ -57,14 +57,50 @@ jobs:
         pip install cython==0.29.33
         pip install buildozer
     
+    - name: Setup Android SDK manually
+      run: |
+        # SDK Verzeichnis erstellen
+        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+        mkdir -p $SDK_DIR
+        
+        # cmdline-tools herunterladen
+        cd $SDK_DIR
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        rm commandlinetools-linux-11076708_latest.zip
+        
+        # In latest/ verschieben
+        mkdir -p cmdline-tools
+        mv cmdline-tools cmdline-tools/latest 2>/dev/null || true
+        
+        # tools/bin für Buildozer erstellen
+        mkdir -p tools/bin
+        
+        # SDK Manager ausführbar machen
+        chmod +x cmdline-tools/latest/bin/sdkmanager
+        
+        # Symlink für Buildozer
+        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+        
+        # Lizenzen akzeptieren
+        mkdir -p $HOME/.android
+        touch $HOME/.android/repositories.cfg
+        yes | cmdline-tools/latest/bin/sdkmanager --licenses
+        
+        # Build-Tools installieren
+        cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.0" "platform-tools" "platforms;android-33"
+        
+        # Prüfen
+        ls -la $SDK_DIR/build-tools/
+    
     - name: Create dummy icon
       run: |
-        # Einfaches 1x1 Pixel PNG (Base64)
         echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > icon.png
         cp icon.png presplash.png
     
     - name: Build APK
       run: |
+        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
         buildozer android debug
     
     - name: Upload APK
