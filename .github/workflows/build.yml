@@ -57,57 +57,33 @@ jobs:
         pip install cython==0.29.33
         pip install buildozer
     
-    - name: Setup Android SDK manually
+    - name: Setup Android SDK
       run: |
-        # SDK Verzeichnis erstellen
-        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
-        mkdir -p $SDK_DIR
+        SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        mkdir -p $SDK_ROOT/cmdline-tools
         
-        # cmdline-tools herunterladen
-        cd $SDK_DIR
+        cd $SDK_ROOT/cmdline-tools
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
         unzip -q commandlinetools-linux-11076708_latest.zip
+        mv cmdline-tools latest
         rm commandlinetools-linux-11076708_latest.zip
         
-        # In cmdline-tools/latest verschieben
-        mkdir -p cmdline-tools
-        mv cmdline-tools cmdline-tools/latest 2>/dev/null || true
-        
-        # Falls mv fehlgeschlagen, manuell verschieben
-        if [ ! -d "cmdline-tools/latest" ]; then
-          mkdir -p cmdline-tools/latest
-          mv bin lib NOTICE.txt source.properties 2>/dev/null cmdline-tools/latest/ || true
-        fi
-        
-        # tools/bin für Buildozer erstellen
-        mkdir -p tools/bin
-        
-        # SDK Manager Pfad
-        SDKMANAGER=$(find $SDK_DIR -name "sdkmanager" -type f | head -1)
-        
-        if [ -z "$SDKMANAGER" ]; then
-          echo "SDK Manager nicht gefunden!"
-          ls -la $SDK_DIR/
-          ls -la $SDK_DIR/cmdline-tools/
-          exit 1
-        fi
-        
-        # Ausführbar machen
-        chmod +x $SDKMANAGER
-        
         # Symlink für Buildozer
-        ln -sf $SDKMANAGER $SDK_DIR/tools/bin/sdkmanager
+        mkdir -p $SDK_ROOT/tools/bin
+        ln -sf $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $SDK_ROOT/tools/bin/sdkmanager
+        
+        # SDK Root explizit setzen
+        export ANDROID_SDK_ROOT=$SDK_ROOT
         
         # Lizenzen akzeptieren
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
-        yes | $SDKMANAGER --licenses
+        yes | $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_ROOT --licenses
         
         # Build-Tools installieren
-        $SDKMANAGER "build-tools;33.0.0" "platform-tools" "platforms;android-33"
+        $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_ROOT "build-tools;33.0.0" "platform-tools" "platforms;android-33"
         
-        # Prüfen
-        ls -la $SDK_DIR/build-tools/
+        echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
     
     - name: Create dummy icon
       run: |
