@@ -69,26 +69,42 @@ jobs:
         unzip -q commandlinetools-linux-11076708_latest.zip
         rm commandlinetools-linux-11076708_latest.zip
         
-        # In latest/ verschieben
+        # In cmdline-tools/latest verschieben
         mkdir -p cmdline-tools
         mv cmdline-tools cmdline-tools/latest 2>/dev/null || true
+        
+        # Falls mv fehlgeschlagen, manuell verschieben
+        if [ ! -d "cmdline-tools/latest" ]; then
+          mkdir -p cmdline-tools/latest
+          mv bin lib NOTICE.txt source.properties 2>/dev/null cmdline-tools/latest/ || true
+        fi
         
         # tools/bin für Buildozer erstellen
         mkdir -p tools/bin
         
-        # SDK Manager ausführbar machen
-        chmod +x cmdline-tools/latest/bin/sdkmanager
+        # SDK Manager Pfad
+        SDKMANAGER=$(find $SDK_DIR -name "sdkmanager" -type f | head -1)
+        
+        if [ -z "$SDKMANAGER" ]; then
+          echo "SDK Manager nicht gefunden!"
+          ls -la $SDK_DIR/
+          ls -la $SDK_DIR/cmdline-tools/
+          exit 1
+        fi
+        
+        # Ausführbar machen
+        chmod +x $SDKMANAGER
         
         # Symlink für Buildozer
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
+        ln -sf $SDKMANAGER $SDK_DIR/tools/bin/sdkmanager
         
         # Lizenzen akzeptieren
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
-        yes | cmdline-tools/latest/bin/sdkmanager --licenses
+        yes | $SDKMANAGER --licenses
         
         # Build-Tools installieren
-        cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.0" "platform-tools" "platforms;android-33"
+        $SDKMANAGER "build-tools;33.0.0" "platform-tools" "platforms;android-33"
         
         # Prüfen
         ls -la $SDK_DIR/build-tools/
@@ -100,7 +116,6 @@ jobs:
     
     - name: Build APK
       run: |
-        export PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
         buildozer android debug
     
     - name: Upload APK
